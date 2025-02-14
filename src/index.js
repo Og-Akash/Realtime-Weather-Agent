@@ -21,7 +21,8 @@ function getWeatherDetails(city:string) => return a json string
 
  Example JSON response : 
 
- {
+ 
+{
   "coord": {
     "lon": 88.3697,
     "lat": 22.5697
@@ -36,24 +37,24 @@ function getWeatherDetails(city:string) => return a json string
   ],
   "base": "stations",
   "main": {
-    "temp": 78.75,
-    "feels_like": 78.75,
-    "temp_min": 78.75,
-    "temp_max": 78.75,
-    "pressure": 1014,
-    "humidity": 29,
-    "sea_level": 1014,
-    "grnd_level": 1014
+    "temp": 299.12,
+    "feels_like": 299.12,
+    "temp_min": 299.12,
+    "temp_max": 299.12,
+    "pressure": 1013,
+    "humidity": 31,
+    "sea_level": 1013,
+    "grnd_level": 1012
   },
   "visibility": 6000,
   "wind": {
-    "speed": 11.5,
+    "speed": 3.6,
     "deg": 330
   },
   "clouds": {
     "all": 0
   },
-  "dt": 1739510906,
+  "dt": 1739514180,
   "sys": {
     "type": 1,
     "id": 9114,
@@ -66,6 +67,7 @@ function getWeatherDetails(city:string) => return a json string
   "name": "Kolkata",
   "cod": 200
 }
+
 
 Strictly follow the JSON.stringify format as in example
 
@@ -118,6 +120,7 @@ const tools = {
 };
 
 const messages = [];
+console.log(`current chain of thoughts`, messages);
 
 async function weatherAssistant() {
   while (true) {
@@ -162,10 +165,10 @@ async function weatherAssistant() {
           exitLoop = true;
           break; // Exit the for-loop; we have our final output.
         } else if (message.type === "action") {
-          // console.log("AI is taking action:", message);
+          console.log("AI is taking action:", message);
 
           const fn = tools[message.function];
-          const observation = fn(message.input);
+          const observation = await fn(message.input);
           const obs = { type: "observation", observation: observation };
 
           // Log the observation before pushing it
@@ -180,7 +183,7 @@ async function weatherAssistant() {
       if (exitLoop) break;
     }
 
-    if(query == "exit"){
+    if (query == "exit") {
       break;
     }
   }
