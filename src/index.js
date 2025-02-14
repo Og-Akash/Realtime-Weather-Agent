@@ -1,86 +1,13 @@
 const dotenv = require("dotenv");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const fs = require("fs");
 const readlineSync = require("readline-sync");
 const { getWeatherDetails } = require("./api");
 dotenv.config();
 
 NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
-const systemPrompt = `
-You are a Realtime Weather Agent who knows the weather of every country , city, state. You are created by Akash Ghosh
-State Definitions:
-1. Start: Receive user input (city name).
-2. Plan: Determine that you need to call which function or which tool to get the weather data.
-3. Action: Call the appropriate function or tool with the given city.
-4. Observation: Waits for the ouput of the function or tool.
-5. Output: Provide a formatted message with the city name and its temperature.
-
-AvaliableTools :- 
-function getWeatherDetails(city:string) => return a json string
- - this is a function which takes a city name as string and return the weather data in a form of an json format. wait for the response, the temp is in response was in fahrenheit just convert it into Celcius.
-
- Example JSON response : 
-
- 
-{
-  "coord": {
-    "lon": 88.3697,
-    "lat": 22.5697
-  },
-  "weather": [
-    {
-      "id": 800,
-      "main": "Clear",
-      "description": "clear sky",
-      "icon": "01d"
-    }
-  ],
-  "base": "stations",
-  "main": {
-    "temp": 299.12,
-    "feels_like": 299.12,
-    "temp_min": 299.12,
-    "temp_max": 299.12,
-    "pressure": 1013,
-    "humidity": 31,
-    "sea_level": 1013,
-    "grnd_level": 1012
-  },
-  "visibility": 6000,
-  "wind": {
-    "speed": 3.6,
-    "deg": 330
-  },
-  "clouds": {
-    "all": 0
-  },
-  "dt": 1739514180,
-  "sys": {
-    "type": 1,
-    "id": 9114,
-    "country": "IN",
-    "sunrise": 1739493552,
-    "sunset": 1739534546
-  },
-  "timezone": 19800,
-  "id": 1275004,
-  "name": "Kolkata",
-  "cod": 200
-}
-
-
-Strictly follow the JSON.stringify format as in example
-
-Example:
-    {"type": "user", "user": "what it the weather of Kolkata?"}
-    {"type": "plan", "plan": "I will call the getWeatherDetails function"}
-    {"type": "action", "function": "getWeatherDetails", "input": "Kolkata"}
-    {"type": "observation", "observation": "30°C"}
-    {"type": "plan", "plan": "I will call the getWeatherDetails function for Delhi"}
-    {"type": "action", "function": "getWeatherDetails", "input": "Delhi"}
-    {"type": "observation", "observation": "14°C"}
-    {"type": "output", "output": "The Sum of weather of kokata and delhi is 24°C"}
-`;
+const systemPrompt = fs.readFileSync("./prompt.txt", "utf-8");
 
 const genAi = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAi.getGenerativeModel({
@@ -119,8 +46,9 @@ const tools = {
   getWeatherDetails: getWeatherDetails,
 };
 
+const cached = {};
+
 const messages = [];
-console.log(`current chain of thoughts`, messages);
 
 async function weatherAssistant() {
   while (true) {
@@ -167,14 +95,23 @@ async function weatherAssistant() {
         } else if (message.type === "action") {
           console.log("AI is taking action:", message);
 
-          const fn = tools[message.function];
-          const observation = await fn(message.input);
-          const obs = { type: "observation", observation: observation };
+          if (cached[message.input]) {
+            console.log(`Using cached data for ${message.input}`);
+            const obs = {
+              type: "observation",
+              observation: cached[message.input],
+            };
+            messages.push(JSON.stringify(obs));
+          } else {
+            const fn = tools[message.function];
+            const observation = await fn(message.input);
+            const obs = { type: "observation", observation: observation };
 
-          // Log the observation before pushing it
-          // console.log("Observation:", obs);
+            // Log the observation before pushing it
+            // console.log("Observation:", obs);
 
-          messages.push(JSON.stringify(obs));
+            messages.push(JSON.stringify(obs));
+          }
         } else if (message.type === "plan") {
           console.log("AI plan:", message.plan);
         }
